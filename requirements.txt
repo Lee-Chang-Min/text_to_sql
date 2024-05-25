@@ -1,0 +1,16 @@
+fastapi 
+uvicorn
+langchain
+langchain-community
+langchain-core 
+langchain-google-vertexai
+langchain-experimental 
+python-dotenv
+google-auth
+google-cloud-bigquery
+google-cloud-bigquery-storage
+google-cloud-aiplatform
+sqlalchemy
+sqlalchemy-bigquery
+langchain_openai
+pyarrow
