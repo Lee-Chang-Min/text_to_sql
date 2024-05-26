@@ -1,6 +1,6 @@
+import json
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import json
 
 from controller import connect_to_bigquery 
 import prompt_Strategy

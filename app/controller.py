@@ -5,7 +5,6 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 from vertexai.preview.generative_models import GenerativeModel
 # from langchain.sql_database import SQLDatabase
-from sqlalchemy import create_engine
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_google_vertexai import VertexAI
 from langchain_google_vertexai import ChatVertexAI
@@ -14,7 +13,7 @@ from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 
 from langchain_community.vectorstores import FAISS
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+# from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import (
     ChatPromptTemplate,
