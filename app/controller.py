@@ -5,11 +5,13 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 from vertexai.preview.generative_models import GenerativeModel
 # from langchain.sql_database import SQLDatabase
+from sqlalchemy import create_engine, text
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_google_vertexai import VertexAI
 from langchain_google_vertexai import ChatVertexAI
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
+from langchain.chains.sql_database.query import create_sql_query_chain
 
 from langchain_community.vectorstores import FAISS
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
@@ -89,7 +91,7 @@ def connect_to_bigquery():
         
         engine = create_engine(f'bigquery://{env.project_id}', credentials_path=service_account_file)
         # db = SQLDatabase(engine=engine, include_tables=['temp_w_ga4.02_page_brand'])
-        db = SQLDatabase(engine=engine, include_tables=['temp_w_ga4.events_'])
+        db = SQLDatabase(engine=engine, include_tables=['temp_w_ga4.flat_event_params'])
         
         # SQL_ALCHEMY_URL = f'bigquery://{env.project_id}//temp_w_ga4?credentials_path={service_account_file}'
         # db = SQLDatabase.from_uri(SQL_ALCHEMY_URL)
@@ -98,23 +100,26 @@ def connect_to_bigquery():
         print("Database dialect:", db.dialect)
         print("Usable table names:", db.get_usable_table_names())
         
-        result = db.run("SELECT * FROM `temp_w_ga4.events_`LIMIT 3;")
-        print("Query results:", result)
+        # result = db.run("SELECT * FROM `temp_w_ga4.events_`LIMIT 3;")
+        # print("Query results:", result)
     
         vertexai.init(project=env.project_id, location=env.region, credentials = credential)
             
         llm = VertexAI(
             model_name="gemini-1.5-pro-preview-0514",
             # model_name="gemini-pro",
-            max_output_tokens=8092,
+            max_output_tokens=8192,
             temperature=0.5,
             top_p=1,
             top_k=40,
-            verbose=True
+            # verbose=True
         )
         
         
-        toolkit = SQLDatabaseToolkit(db=db, llm=llm) 
+        generate_query = create_sql_query_chain(llm, db)
+        query = generate_query.invoke({"question": "웹사이트나 앱에 정의된 특정 사용자 이벤트에 보고 하는 쿼리를 작성해줘"})
+        print(query)
+        # toolkit = SQLDatabaseToolkit(db=db, llm=llm) 
         
         # example_selector = SemanticSimilarityExampleSelector.from_examples(
         #     # examples,
@@ -124,26 +129,26 @@ def connect_to_bigquery():
         #     k=5,
         #     input_keys=["input"], # 입력 텍스트 키를 지정.
         # )
-        prefix = """ You are an agent designed to interact with a SQL database.
-            Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
-            Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
-            answer all action and thought in Korean and the final answer in Korean
+        # prefix = """ You are an agent designed to interact with a SQL database.
+        #     Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
+        #     Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
+        #     answer all action and thought in Korean and the final answer in Korean
 
-        """
+        # """
         
-        agent_executor = create_sql_agent(llm=llm, toolkit=toolkit, prefix=prefix, verbose=True)
-        # print(agent_executor)
-        prompt = PromptTemplate.from_template("""
+        # agent_executor = create_sql_agent(llm=llm, toolkit=toolkit, prefix=prefix, verbose=True)
+        # # print(agent_executor)
+        # prompt = PromptTemplate.from_template("""
 
                                               
-            """)
-        response = agent_executor.invoke(
-            {
-                "input": f" 테이블 이름은 temp_w_ga4.events_이고 event_date가 '20240520' 인것과 mobile_brand_name이 'Samsung' 데이터들을 보여줘, 그리고 테이블에 대한 스키마는 {schma.event_table_info} 이 정보를 참고해줘. 최대 보여주는 열의 갯수는 5개로 제한해."
-            }
-        )
+        #     """)
+        # response = agent_executor.invoke(
+        #     {
+        #         "input": f" 테이블 이름은 temp_w_ga4.events_이고 event_date가 '20240520' 인것과 mobile_brand_name이 'Samsung' 데이터들을 보여줘, 그리고 테이블에 대한 스키마는 {schma.event_table_info} 이 정보를 참고해줘. 최대 보여주는 열의 갯수는 5개로 제한해."
+        #     }
+        # )
         
-        print(response)
+        # print(response)
         
     except Exception as e:
         print("connet_to_bigquery 함수에서 에러 발생: ", str(e))

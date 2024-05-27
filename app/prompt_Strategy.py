@@ -21,14 +21,21 @@ import vertexai
 from langchain_google_vertexai import VertexAI
 from vertexai.preview.generative_models import GenerativeModel
 
+import logging
+
+logging.basicConfig(
+  format = '%(asctime)s:%(levelname)s:%(message)s',
+  #datefmt = '%Y-%m-%d: %I:%M:%S %p',
+  level = logging.INFO
+)
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"]="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"
 os.environ["LANGCHAIN_PROJECT"]="sql_project"
 
 
-def main():
+def main(web_question:str):
     """
-        # DB의 Context 정보가 어떻게 쓰이는지 알고 싶을떄.
+        - DB의 Context 정보가 어떻게 쓰이는지 알고 싶을떄.
         context = db.get_context()
         print(list(context))
         
@@ -41,6 +48,12 @@ def main():
         db = connet_db()
         llm = build_llm()
 
+        QUESTION=web_question
+        # QUESTION="""Purpose
+        #             Report on specific user events that have been defined on your website or app.
+        #             Note 
+        #             The query below is looking specifically for the event name “page_view”. You can modify this event name based on the event names on your website or app.
+        #             """
         
         # Question: Question here
         # SQLQuery: SQL Query to run
@@ -57,7 +70,7 @@ def main():
         Use UNNEST to flatten any nested fields if necessary.
                                                        
         Use the following format:
-
+        
         Question: Question here
         SQLQuery: SQL Query to run
         SQLResult: Result of the SQLQuery
@@ -70,22 +83,29 @@ def main():
                                                        
         """)
         
-        prompt_template.format(table_info="", top_k = 3, input= "이벤트 날짜가 20240520인 데이터 갯수를 알려줘")
         
         #https://api.python.langchain.com/en/latest/chains/langchain.chains.sql_database.query.create_sql_query_chain.html
-        generate_query = create_sql_query_chain(llm, db, prompt=prompt_template)
-
-        #STEP1 - chain
-        query = generate_query.invoke({"question": "웹사이트나 앱에 정의된 특정 사용자 이벤트에 보고 하는 쿼리를 작성해줘"})
-        sql_query = query.split('```sql')[1].split('```')[0].strip()
+        #STEP1 - query 값 구하기
+        #custom prompt 구성
+        # prompt_template.format(table_info="", top_k = 3, input= QUESTION)
         
+        generate_query = create_sql_query_chain(llm, db, prompt=prompt_template)
+        
+        print("========================================")
+        generate_query.get_prompts()[0].pretty_print()
+        print("========================================")
+        
+        query_response = generate_query.invoke({"question": QUESTION})  
+        print("Query Response:\n", query_response)  # 디버깅을 위한 출력      
+        sql_query = query_response.split('```sql')[1].split('```')[0].strip()
+
         
         #STEP2 - chain
         execute_query = QuerySQLDataBaseTool(db=db)
         # print(execute_query.invoke(sql_query))      
         
         answer_prompt = PromptTemplate.from_template(
-            """Given the following user question, corresponding SQL query, and SQL result, answer the user question.
+             """Given the following user question, corresponding SQL query, and SQL result, answer the user question in the same language as the question.
 
             Question: {question}
             SQL Query: {query}
@@ -94,24 +114,19 @@ def main():
         )
 
         rephrase_answer = answer_prompt | llm | StrOutputParser()
-        print(rephrase_answer)
-        print("rephrase_answer>>>>>>>")
-        # chain = (
-        #     RunnablePassthrough.assign(query=sql_query).assign(
-        #         result=itemgetter("query") | execute_query
-        #     )
-        #     | rephrase_answer
-        # )
-        # print(RunnablePassthrough.assign(query=generate_query))
-        chain = (
-            RunnablePassthrough
-            .assign(query=generate_query)
-            .assign(result=itemgetter("query") | execute_query)
-            | rephrase_answer
-        )
 
-        real = chain.invoke({"question": "웹사이트나 앱에 정의된 특정 사용자 이벤트에 보고 하는 쿼리를 작성해줘"})
-        print(real)
+        chain = RunnablePassthrough.assign(
+            query=lambda _: {"query": sql_query}
+        ).assign(
+            result=itemgetter("query") | execute_query
+        ) | rephrase_answer
+        real = chain.invoke({"question": QUESTION})
+
+
+        print("최종 답변====================>")
+        logging.info(real)
+        return real
+
         
         
     except Exception as e:
@@ -119,7 +134,7 @@ def main():
 
 def connet_db():
     try:
-        print("Connecting to db...")\
+        logging.debug("Connecting to db...")
         
         ### Bigquery - DB 정보
         #현재는 단일 테이블이라는 가정. 추가 여러 테이블의 들어갈시, 추가 로직이 필요 할듯 함
@@ -182,7 +197,7 @@ def connet_db():
     
 def build_llm():
     try:
-        print("build_llm...")
+        logging.debug("build_llm...")
         
         credential = service_account.Credentials.from_service_account_file(
             env.GOOGLE_APPLICATION_CREDENTIALS,
@@ -192,7 +207,7 @@ def build_llm():
                 
         llm = VertexAI(
             model_name=env.gemini_1_5_flash,
-            max_output_tokens=8092,
+            max_output_tokens=8192,
             temperature=0.5,
             top_p=1,
             top_k=40,
