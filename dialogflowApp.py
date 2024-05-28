@@ -6,6 +6,10 @@ import uuid
 import os
 import sys
 
+directory = os.getcwd()
+# Append sys path to refer utils.
+sys.path.append(directory+"/app")
+
 from app.prompt_Strategy import main
 
 

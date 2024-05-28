@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from controller import connect_to_bigquery 
+from app.agent import connect_to_bigquery 
 import prompt_Strategy
 
 app = FastAPI()
@@ -13,15 +13,8 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 
-@app.get("/search")
+@app.get("/sqlagent")
 async def search():
-    
-    # outcome = Controller.
-    # print(f"result {outcome}")
-
-    # response = {
-    #     "result": outcome
-    # }
 
     connect_to_bigquery()
     

@@ -1,11 +1,11 @@
 import os
 import ast
-import traceback
 import constant as env
 import pandas as pd
 from operator import itemgetter
 
 from google.oauth2 import service_account
+from google.cloud import bigquery
 from langsmith import traceable
 
 from sqlalchemy import create_engine, text
@@ -19,19 +19,26 @@ from langchain_core.runnables import RunnablePassthrough
 
 import vertexai
 from langchain_google_vertexai import VertexAI
-from vertexai.preview.generative_models import GenerativeModel
+from vertexai.generative_models import GenerativeModel
 
 import logging
+import coloredlogs
+
 
 logging.basicConfig(
   format = '%(asctime)s:%(levelname)s:%(message)s',
   #datefmt = '%Y-%m-%d: %I:%M:%S %p',
   level = logging.INFO
 )
+
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"]="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"
 os.environ["LANGCHAIN_PROJECT"]="sql_project"
 
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="./key.json"
+
+#Biqeury Client
+bigquery_client = bigquery.Client()
 
 def main(web_question:str):
     """
@@ -46,7 +53,7 @@ def main(web_question:str):
     """
     try:
         db = connet_db()
-        llm = build_llm()
+        vertexai_modal, multimodal = build_llm()
 
         QUESTION=web_question
         # QUESTION="""Purpose
@@ -75,7 +82,7 @@ def main(web_question:str):
         SQLQuery: SQL Query to run
         SQLResult: Result of the SQLQuery
         Answer: Final answer here
-
+        
         Only use the following tables:
         {table_info}
                                                        
@@ -89,7 +96,7 @@ def main(web_question:str):
         #custom prompt 구성
         # prompt_template.format(table_info="", top_k = 3, input= QUESTION)
         
-        generate_query = create_sql_query_chain(llm, db, prompt=prompt_template)
+        generate_query = create_sql_query_chain(vertexai_modal, db, prompt=prompt_template)
         
         print("========================================")
         generate_query.get_prompts()[0].pretty_print()
@@ -102,7 +109,8 @@ def main(web_question:str):
         
         #STEP2 - chain
         execute_query = QuerySQLDataBaseTool(db=db)
-        # print(execute_query.invoke(sql_query))      
+
+        print("dry run =>", dry_run(sql_query))     
         
         answer_prompt = PromptTemplate.from_template(
              """Given the following user question, corresponding SQL query, and SQL result, answer the user question in the same language as the question.
@@ -113,15 +121,15 @@ def main(web_question:str):
             Answer: """
         )
 
-        rephrase_answer = answer_prompt | llm | StrOutputParser()
+        rephrase_answer = answer_prompt | vertexai_modal | StrOutputParser()
 
         chain = RunnablePassthrough.assign(
             query=lambda _: {"query": sql_query}
         ).assign(
             result=itemgetter("query") | execute_query
         ) | rephrase_answer
+        
         real = chain.invoke({"question": QUESTION})
-
 
         print("최종 답변====================>")
         logging.info(real)
@@ -184,7 +192,7 @@ def connet_db():
         }
 
         db = SQLDatabase(engine=engine, include_tables=['temp_w_ga4.events_'], custom_table_info=custom_info)
-        
+
         # print(db.dialect)
         # print(db.get_usable_table_names())
         # print(db.get_table_info())
@@ -204,8 +212,9 @@ def build_llm():
             # scopes=['https://www.googleapis.com/auth/bigquery']
             )
         vertexai.init(project=env.project_id, location=env.region, credentials = credential)
-                
-        llm = VertexAI(
+        
+             
+        vertexai_modal = VertexAI(
             model_name=env.gemini_1_5_flash,
             max_output_tokens=8192,
             temperature=0.5,
@@ -214,7 +223,67 @@ def build_llm():
             verbose=True
         )
         
-        return llm
+        generation_config = {
+            "max_output_tokens": 8192,
+            "temperature": 0.5,
+            "top_p": 1,
+            "top_k": 40
+        }   
+        multimodal = GenerativeModel(model_name=env.gemini_1_5_flash, generation_config = generation_config)
+        
+        return vertexai_modal, multimodal
     
     except Exception as e:
         raise Exception(f"build_llm 함수에서 에러 발생:  {e}")
+    
+    
+def dry_run(sql_query: str):
+    
+    try:   
+        query_job= ""
+        # Dry run 설정
+        job_config = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
+
+        query_job = bigquery_client.query(sql_query, job_config=job_config)
+            
+        # dry run
+        if query_job.errors:
+            error_message = query_job.errors
+            print(f"Dry run error occurred: {error_message}")
+            raise Exception(error_message)
+            
+        # A dry run query completes immediately.
+        print("This query will process {} bytes.".format(query_job.total_bytes_processed))
+        
+    except Exception as e:
+        print(f"sql 에러 발생: {e}")
+        vertexai_modal, multimodal = build_llm()
+        prompt = PromptTemplate.from_template("""
+            당신은 BigQuery 전문가입니다. 당신의 임무는 오류 메시지와 해당 SQL 쿼리를 분석하여 문제를 식별하고 수정된 쿼리 버전을 제공하는 것입니다.
+            
+            Input:
+            1. 오류 메시지: {error_message}
+            2. SQL 쿼리: {sql_query}
+
+            Instructions:
+            1. Analyze the provided error message to understand the specific issue with the SQL query.
+            2. Identify the exact part of the SQL query that is causing the error.
+            3. Rewrite the SQL query to correct the error.
+            4. Ensure the corrected query follows the syntax and constraints of BigQuery.
+
+            Output:
+            1. cause:
+            2. fixed_sql:
+        """)
+        
+        formatted_prompt = prompt.format(error_message=e, sql_query=sql_query)
+        fix_sql = multimodal.generate_content(formatted_prompt)
+        print(fix_sql.text)
+        return fix_sql.text.split('```sql')[1].split('```')[0].strip()
+    
+    finally:
+        print(f"dry_run 작업이 완료되었습니다.")
+        
+    
+    
+    
