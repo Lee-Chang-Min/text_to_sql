@@ -6,6 +6,7 @@ langchain-community
 langchain-core 
 langchain-google-vertexai
 langchain-experimental 
+langchain_openai
 python-dotenv
 google-auth
 google-cloud-bigquery
@@ -13,6 +14,8 @@ google-cloud-bigquery-storage
 google-cloud-aiplatform
 sqlalchemy
 sqlalchemy-bigquery
-langchain_openai
 pyarrow
 coloredlogs
+matplotlib
+debugpy
+altair

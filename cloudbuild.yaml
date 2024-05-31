@@ -1,0 +1,6 @@
+# https://cloud.google.com/build/docs/configuring-builds/create-basic-configuration?hl=ko (참고)
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'Dockerfile.prod', '-t', 'asia-northeast3-docker.pkg.dev/lottecard-test/chatbot/chatbot:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'asia-northeast3-docker.pkg.dev/lottecard-test/chatbot/chatbot:latest']

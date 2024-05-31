@@ -1,0 +1,14 @@
+# https://cloud.google.com/run/docs/deploying?hl=ko#yaml (참고)
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: chatbot-service
+spec:
+  template:
+    spec:
+      containers:
+        - image: asia-northeast3-docker.pkg.dev/lottecard-test/chatbot/chatbot:latest
+          env:
+          ports:
+            - containerPort: 4000
+            

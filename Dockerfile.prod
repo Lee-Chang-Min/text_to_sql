@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+
+#buffer의 아웃풋을 허용하지 않고 바로 프린트
+#python이 실행될 때 도커이미지와 관련된 것들의 일부 충돌을 막아줌
+ENV PYTHONUNBUFFERED True
+ENV PYTHONPATH=/home/chatbot/src
+
+# set the working directory
+WORKDIR /home/chatbot
+
+COPY ./requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# copy src code
+COPY . .
+
+EXPOSE 4000
+
+# HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+
+# start the server
+# ENTRYPOINT ["streamlit", "run", "streamlit_app.py", "--server.port=8501"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8501", "--proxy-headers"]

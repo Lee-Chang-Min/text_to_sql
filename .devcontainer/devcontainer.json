@@ -1,0 +1,25 @@
+{
+    "name": "Python FastAPI Chatbot",
+    "build": {
+      "dockerfile": "../Dockerfile.dev"
+    },
+    "customizations": {
+      "vscode": {
+          "extensions": [
+              "ms-python.python",
+              "ms-python.vscode-pylance",
+              "ms-python.debugpy",
+              "ms-azuretools.vscode-docker"
+          ],
+          "settings": {}
+      }
+    },
+    "forwardPorts": [
+      "8008:8008"
+    ],
+    // 로컬 작업 공간을 컨테이너 내부에 마운트
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/chatbot,type=bind,consistency=delegated",
+    // 컨테이너 내부에서 작업할 폴더
+    "workspaceFolder": "/home/chatbot",
+    "runArgs": []
+}

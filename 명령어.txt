@@ -1,1 +1,34 @@
 uvicorn main:app --reload
+
+*컨테이너 실행후 workdir lib 설치
+pip install -r requirements.txt
+
+*fastapi 실행
+uvicorn src.main:app --host 0.0.0.0 --port 4000 --reload
+
+
+#gcloud process
+
+1. gcloud init
+
+#projectname = lottecard-test
+#repo_name = chatbot
+#region = asia-northeast3
+
+#gcloud artifacts repositories create {repo_name} --repository-format docker --project {projectname} --location asia-northeast3
+# artifacts repositories 저장소 생성
+2. gcloud artifacts repositories create chatbot --repository-format docker --project lottecard-test --location asia-northeast3
+
+# gcloud docker images push
+#https://cloud.google.com/sdk/gcloud/reference/builds/submit#--config
+#gcloud builds submit 
+#    --tag {region}-docker.pkg.dev/{projectname}/{repo_name}/{repo_name}:latest 
+#    --project {projectname} .
+위의 명령어를 그대로 사용할려면 Dockerfile이라고 명시된 file 참조
+
+dev, prod 등의 dockerfile이 있을때
+confing yaml 파일 구성
+3. gcloud builds submit --config=cloudbuild.yaml --project lottecard-test .
+
+deploy
+4. gcloud run services replace service.yaml --region asia-northeast3

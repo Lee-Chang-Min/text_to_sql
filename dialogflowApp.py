@@ -1,16 +1,21 @@
 from google.oauth2 import service_account
 # from google.cloud import dialogflowcx_v3 as dialogflow
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import altair as alt
 import uuid
 
 import os
 import sys
+import debugpy
+
+# debugpy.listen(("0.0.0.0", 8008))
 
 directory = os.getcwd()
-# Append sys path to refer utils.
-sys.path.append(directory+"/app")
+sys.path.append(directory+"/src")
 
-from app.prompt_Strategy import main
+from src.prompt_Strategy import main
 
 
 # PROJECT_ID = "lottecard-test"
@@ -54,6 +59,64 @@ st.image('images/ga4-removebg.png')
 st.title("안녕하세요.")
 st.title("무엇을 도와 드릴까요?",)
 st.caption("🚀 chatbot powered by Dialogflow CX")
+
+# data = {
+#     "unique_users": 366,
+#     "unique_events": 19,
+#     "unique_dates": 1,
+#     "unique_timestamps": 2465,
+#     "unique_previous_timestamps": 4,
+#     "unique_event_values": 0,
+#     "unique_bundle_ids": 3,
+#     "unique_server_offsets": 2,
+#     "unique_user_ids": 0,
+#     "unique_first_touch_timestamps": 365
+# }
+# # Convert the dictionary to a DataFrame
+# data_df = pd.DataFrame(list(data.items()), columns=['Category', 'Values'])
+# # data_df = pd.DataFrame({
+# #     'Category': ['2020-01-01', '2020-01-02', '2020-01-03'],
+# #     'Values': [10, 20, 30]
+# # })
+# # # Convert data to DataFrame
+# chart_type = st.selectbox("차트 유형을 선택하세요:", ('바 차트', '라인 차트', '영역 차트', '점 차트'))
+
+# # 선택된 차트 유형에 따른 차트 렌더링
+# if chart_type == '바 차트':
+#     chart = alt.Chart(data_df).mark_bar().encode(
+#         x='Category:N',
+#         y='Values:Q',
+#         color='Category:N',
+#         tooltip=['Category', 'Values']
+#     ).properties(title='Unique Data Metrics', width=600)
+
+# elif chart_type == '라인 차트':
+#     chart = alt.Chart(data_df).mark_line().encode(
+#         x='Category:N',
+#         y='Values:Q',
+#         color='Category:N',
+#         tooltip=['Category', 'Values']
+#     ).properties(title='Unique Data Metrics', width=600)
+
+# elif chart_type == '영역 차트':
+#     chart = alt.Chart(data_df).mark_area().encode(
+#         x='Category:N',
+#         y='Values:Q',
+#         color='Category:N',
+#         tooltip=['Category', 'Values']
+#     ).properties(title='Unique Data Metrics', width=600)
+
+# elif chart_type == '점 차트':
+#     chart = alt.Chart(data_df).mark_point().encode(
+#         x='Category:N',
+#         y='Values:Q',
+#         color='Category:N',
+#         size='Values:Q',  # 크기를 값에 따라 조절
+#         tooltip=['Category', 'Values']
+#     ).properties(title='Unique Data Metrics', width=600)
+
+# # Streamlit에 차트 표시
+# st.altair_chart(chart, use_container_width=True)
 
 if 'messages' not in st.session_state:
     st.session_state["messages"] = [{"role": "assistant", "content": "Google Analytics Knowledge base 기반의 Chatbot 서비스 입니다."}]
@@ -144,3 +207,28 @@ if prompt:
 #     if(prompt == '월별 평균 세션 지속 시간의 그래프를 그려주세요'):  st.image(get_image_base64(), caption="월별 평균 지속 시간")
         
     
+# data = {
+#     "unique_users": 366,
+#     "unique_events": 19,
+#     "unique_dates": 1,
+#     "unique_timestamps": 2465,
+#     "unique_previous_timestamps": 4,
+#     "unique_event_values": 0,
+#     "unique_bundle_ids": 3,
+#     "unique_server_offsets": 2,
+#     "unique_user_ids": 0,
+#     "unique_first_touch_timestamps": 365
+# }
+
+# # # Convert data to DataFrame
+# chart = alt.Chart(data_df).mark_line(point=True).encode(
+#     x=alt.X('Category:N', title='Category'),
+#     y=alt.Y('Values:Q', title='Values'),
+#     tooltip=['Category', 'Values']
+# ).properties(
+#     title='Unique Data Metrics',
+#     width=600
+# )
+
+# # Display the chart in Streamlit
+# st.altair_chart(chart, use_container_width=True)
