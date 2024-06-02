@@ -2,7 +2,6 @@ from google.oauth2 import service_account
 # from google.cloud import dialogflowcx_v3 as dialogflow
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import altair as alt
 import uuid
 
@@ -10,13 +9,11 @@ import os
 import sys
 import debugpy
 
-# debugpy.listen(("0.0.0.0", 8008))
-
 directory = os.getcwd()
 sys.path.append(directory+"/src")
 
-from src.prompt_Strategy import main
-
+from sqlController import SqlController
+prod = True
 
 # PROJECT_ID = "lottecard-test"
 # LOCATION_ID = "global"
@@ -119,7 +116,10 @@ st.caption("🚀 chatbot powered by Dialogflow CX")
 # st.altair_chart(chart, use_container_width=True)
 
 if 'messages' not in st.session_state:
+    st.session_state['sqlcontroller'] = SqlController(prod)
     st.session_state["messages"] = [{"role": "assistant", "content": "Google Analytics Knowledge base 기반의 Chatbot 서비스 입니다."}]
+
+sqlcontroller = st.session_state['sqlcontroller']
 
 # if 'session_id' not in st.session_state:
 #     st.session_state['session_id'] = str(uuid.uuid4())
@@ -169,7 +169,7 @@ if prompt:
 
     # Send the user's message to Dialogflow and get the response
     # print(st.session_state['session_id'])
-    msg = main(prompt)
+    msg = sqlcontroller.response(prompt)
     
     if msg:
         st.session_state.messages.append({"role": "assistant", "content": msg})

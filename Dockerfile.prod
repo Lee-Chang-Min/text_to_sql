@@ -14,10 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # copy src code
 COPY . .
 
-EXPOSE 4000
+EXPOSE 8501
 
 # HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 
 # start the server
-# ENTRYPOINT ["streamlit", "run", "streamlit_app.py", "--server.port=8501"]
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8501", "--proxy-headers"]
+ENTRYPOINT ["streamlit", "run", "dialogflow_ui.py", "--server.port=8501"]
+# CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8501", "--proxy-headers"]`

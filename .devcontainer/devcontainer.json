@@ -15,7 +15,7 @@
       }
     },
     "forwardPorts": [
-      "8008:8008"
+      "5678:5678"
     ],
     // 로컬 작업 공간을 컨테이너 내부에 마운트
     "workspaceMount": "source=${localWorkspaceFolder},target=/home/chatbot,type=bind,consistency=delegated",

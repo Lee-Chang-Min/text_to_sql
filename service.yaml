@@ -6,9 +6,10 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: developer@lottecard-test.iam.gserviceaccount.com
       containers:
         - image: asia-northeast3-docker.pkg.dev/lottecard-test/chatbot/chatbot:latest
           env:
           ports:
-            - containerPort: 4000
+            - containerPort: 8501
             

@@ -31,4 +31,9 @@ confing yaml 파일 구성
 3. gcloud builds submit --config=cloudbuild.yaml --project lottecard-test .
 
 deploy
-4. gcloud run services replace service.yaml --region asia-northeast3
+4. gcloud run services replace service.yaml --region asia-northeast3 --allow-unauthenticated
+
+
+asia-northeast1-a
+
+gcloud run deploy [SERVICE_NAME] --image gcr.io/[PROJECT_ID]/[IMAGE] --service-account [SERVICE_ACCOUNT_EMAIL]

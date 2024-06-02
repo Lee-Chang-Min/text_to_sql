@@ -9,5 +9,6 @@ RUN apt-get update && apt-get install -y curl git vim net-tools build-essential 
 
 WORKDIR /home/chatbot
 
+#pip가 루트 사용자로 실행될 때 경고를 무시
 ENV PIP_ROOT_USER_ACTION=ignore
 ENV PYTHONPATH=/home/chatbot/src
