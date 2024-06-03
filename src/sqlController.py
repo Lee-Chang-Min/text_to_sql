@@ -46,8 +46,11 @@ class SqlController():
     NLP to SQL 처리 클래스 
     
         1.
+        2.
+        3.
 
     """
+    prod = None
     credentials = None
 
     bigquery_client = None
@@ -61,7 +64,7 @@ class SqlController():
     table_name= "events_"
 
     def __init__(self, prod:bool):
-
+        self.prod = prod
         # if prod = False, use local file key.json
         if not prod:
 
@@ -73,7 +76,7 @@ class SqlController():
         
             # the location of service account in Cloud Shell.
             SqlController.credentials = service_account.Credentials.from_service_account_file(
-                env.service_acc_localFile, 
+                env.service_acc_dev, 
                 # scopes=['https://www.googleapis.com/auth/cloud-platform']
             )
           
@@ -158,7 +161,10 @@ class SqlController():
         """
         try:
             #DB 엔진 생성
-            engine = create_engine(f'bigquery://{self.project_id}', credentials_path=env.service_acc_prod)
+            if self.prod:
+                engine = create_engine(f'bigquery://{self.project_id}')
+            else:
+                engine = create_engine(f'bigquery://{self.project_id}', credentials_path=env.service_acc_dev)
 
             with engine.connect() as connection:
                 table_result = connection.execute(text(f"""SELECT column_name, data_type, is_nullable

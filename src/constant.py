@@ -6,7 +6,6 @@ region="asia-northeast3"
 
 #서비스 계정 Key
 service_acc_dev = "./key.json"
-service_acc_prod = "/home/chatbot/key.json"
 
 # 모델 정보.
 # 모델은 여러개 등록해서 코드상에서 해당 목적에 맞게 구성
