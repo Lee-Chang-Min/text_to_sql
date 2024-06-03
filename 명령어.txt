@@ -37,3 +37,23 @@ deploy
 asia-northeast1-a
 
 gcloud run deploy [SERVICE_NAME] --image gcr.io/[PROJECT_ID]/[IMAGE] --service-account [SERVICE_ACCOUNT_EMAIL]
+
+
+
+########## DEBUG ###########
+{
+    "version": "0.2.0",
+    "configurations": 
+    [
+        {
+            "name": "streamlit debug",
+            "type": "python",
+            "request": "launch",
+            "module": "streamlit",
+            "args": ["run", "${file}"],
+            "justMyCode": true,
+        }
+    ]
+   }
+ 
+   

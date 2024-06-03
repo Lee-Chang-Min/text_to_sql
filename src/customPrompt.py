@@ -16,7 +16,7 @@ dryRunPrompt= """
                 5. Ensure the corrected query follows the syntax and constraints of BigQuery.
 
 
-                Output: ["fixed_query"]
+                Output the final SQL query only.
                 
             """
 
@@ -54,3 +54,36 @@ naturalPrompt =  """
 
                 """
 
+
+barPossiblePrompt = """
+            당신은 <query>가 실행된 <data>의 내용을 바탕으로 
+            막대 그래프 차트를 표현 할 수 있는 데이터 인지 판단하는 AI Agent 입니다.
+            
+            <query>{query}</query>
+            <data>{data}</data>
+
+            막대 그래프는 각 항목에 해당하는 수치를 나타내는 막대로 표현할 수 있어야 합니다.
+            각 데이터의 항목은 튜플 형태로 구성되어 있습니다. 이 데이터를 사용하여 막대 그래프를 그릴 수 있는지 판단하세요. 
+            막대 그래프로 표현 할 수 있으면 "Y" 표현 할 수 없으면 "N" 로 답하세요.
+
+            Output: only "Y" or "N" (no additional characters or spaces)
+            """
+
+barChartPrompt = """
+                
+                당신은 Streamlit 의 altair 라이브러리를 통해 bar chart를 개발하는 AI 에이전트 입니다.
+                <data>를 분석하여 "x축", "y축", "color", "tooltip", "title" 5가지를 정해주세요.
+
+                <data>{data}</data>
+
+                example code:'''
+                alt.Chart(data_df).mark_bar().encode(
+                x='device_category:N',
+                y='session_count:Q',
+                color='device_category:N',
+                tooltip=['device_category', 'session_count']).properties(title='Device Category vs. Session Count', width=600)
+                '''
+
+                답변 포맷: {"x": x축, "y": y축, "color": color, "tooltip":tooltip, "title": title}
+
+                """

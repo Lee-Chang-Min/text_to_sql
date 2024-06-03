@@ -57,6 +57,9 @@ class SqlController():
     db_client = None
     llm_client = None
 
+    execute_query = None
+    final_query = None
+
     project_id = env.project_id
     region = env.region
 
@@ -92,9 +95,11 @@ class SqlController():
         SqlController.bigquery_client = bigquery.Client(credentials=SqlController.credentials) 
         logging.info(f"[SQLController][__init__] SQLController  : vertaxai init => success, bigqueryclient => success")
 
-        #connect_db
+        #connect_db and build llm
         SqlController.db_client = self.connect_db(SqlController.data_set, SqlController.table_name)
         SqlController.llm_client = self.vertax_llm(env.gemini_1_5_flash)
+
+        SqlController.execute_query = QuerySQLDataBaseTool(db=self.db_client)
         logging.info(f"[SQLController][__init__] Initialize SQLController done!")
         
 
@@ -127,28 +132,28 @@ class SqlController():
             logging.info(f"[SQLController][response] Query Response: {query_response}")  
 
             sql_query = self.extract_sql_query(query_response)
+
             #쿼리 오류가 없을 시 fix_query = None 
             fix_query = self.dry_run(sql_query)    
-            final_query = sql_query if fix_query is None else fix_query
+            self.final_query = sql_query if fix_query is None else fix_query
 
             
             #STEP2 - 자연어 처리 chain
-            execute_query = QuerySQLDataBaseTool(db=self.db_client)
             answer_prompt = PromptTemplate.from_template(customPrompt.naturalPrompt)
 
             rephrase_answer = answer_prompt | self.llm_client | StrOutputParser()
 
             chain = RunnablePassthrough.assign(
-                query=lambda _: {"query": final_query}
+                query=lambda _: {"query": self.final_query}
             ).assign(
-                result=itemgetter("query") | execute_query
+                result=itemgetter("query") | self.execute_query
             ) | rephrase_answer
             
             result = chain.invoke({"question": question})
 
             logging.info(f"[SQLController][response] final responses : {result}")
 
-            return f"실행된 쿼리: {final_query}\n\n답변: {result}"        
+            return f"실행된 쿼리: {self.final_query}\n\n답변: {result}"        
             
         except Exception as e:
             logging.error(f"[SQLController][response] response function Error : {e}")
@@ -296,3 +301,51 @@ class SqlController():
             return query.split('SQLQuery:')[1].strip().split('\n')[0].strip()
         else:
             logging.error(f"[SQLController][extract_sql_query] query를 추출 할 수 없음: queryOutput{query}")
+
+    def chartCreate(self):
+        query = """
+        SELECT
+    t.event_name,
+    t.user_id,
+    t.user_pseudo_id,
+    t.event_timestamp,
+    t.event_date,
+    t.device.category,
+    t.geo.country,
+    t.traffic_source.name,
+    t.traffic_source.medium,
+    t.traffic_source.source,
+    count(DISTINCT param.value.int_value)
+  FROM
+    `lottecard-test.temp_w_ga4.events_` AS t,
+    UNNEST(t.event_params) AS param
+  WHERE t.event_name = 'session_start'
+  GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+  ORDER BY
+    t.event_timestamp DESC
+  LIMIT 5"""
+        data = self.execute_query.run(query)
+        print(">>>>>>>>",data)
+
+        #1. 막대 그래프 차트를 생성 할수 있는 데이터 인지 판단.
+        prompt = PromptTemplate.from_template(
+            template=customPrompt.barPossiblePrompt
+        )
+
+        possibility = self.generation_llm(prompt.format(query = query,data = data), env.gemini_1_5_pro)
+        print(possibility.strip())
+        if(possibility.strip() == "Y"):
+            # 차트 생성# 
+            prompt = PromptTemplate.from_template(
+                template=customPrompt.barChartPrompt
+            )
+
+            graph = self.generation_llm(prompt.format(data = data), env.gemini_1_5_pro)
+            print(graph)
+
+            pass
+        else:
+            pass
+
+        
+        return

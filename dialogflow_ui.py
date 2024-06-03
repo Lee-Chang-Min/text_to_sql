@@ -1,3 +1,4 @@
+import time
 from google.oauth2 import service_account
 # from google.cloud import dialogflowcx_v3 as dialogflow
 import streamlit as st
@@ -13,7 +14,7 @@ directory = os.getcwd()
 sys.path.append(directory+"/src")
 
 from sqlController import SqlController
-prod = True
+prod = False
 
 # PROJECT_ID = "lottecard-test"
 # LOCATION_ID = "global"
@@ -39,7 +40,28 @@ def load_css_from_file():
     with open('css/style.css', "r", encoding='utf-8') as f:
         css_content = f.read()
     st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
+# def response_generator(response_text):
+# """
+# response msg 안에 줄바꿈 로직이 필요 없을때.
+# """
+#     for word in response_text.split():
+#         yield word + " "
+#         time.sleep(0.05)
 
+def response_generator(response_text):
+    for part in response_text.split(' '):
+        if '\n\n' in part:
+            sub_parts = part.split('\n\n')
+            for i, sub_part in enumerate(sub_parts):
+                yield sub_part + " "
+                time.sleep(0.05)
+                if i < len(sub_parts) - 1:
+                    yield '\n\n'
+        else:
+            yield part + " "
+            time.sleep(0.05)
+
+#CSS load
 load_css_from_file() 
 
 # UI 구성
@@ -57,6 +79,61 @@ st.title("안녕하세요.")
 st.title("무엇을 도와 드릴까요?",)
 st.caption("🚀 chatbot powered by Dialogflow CX")
 
+# Streamlit chat input
+prompt = st.chat_input(placeholder="여기에 메세지를 입력해주세요.")
+
+#chat message print
+if 'messages' not in st.session_state:
+    st.session_state['sqlcontroller'] = SqlController(prod)
+    st.session_state["messages"] = [{"role": "assistant", "content": "Google Analytics Knowledge base 기반의 Chatbot 서비스 입니다."}]
+sqlcontroller = st.session_state['sqlcontroller']
+
+if st.button("차트 생성", key="chart_button"):
+    sqlcontroller.chartCreate()
+    data = [
+    ('session_start', None, '961114437.1716217099', 1716217099812399, '20240520', 'mobile', 'South Korea', '(organic)', 'cpc', 'google', 3),
+    ('session_start', None, '720669353.1716216398', 1716216400189003, '20240520', 'mobile', 'South Korea', '(referral)', 'cpc', 'google', 3),
+    ('session_start', None, '625063019.1716216237', 1716216239381110, '20240520', 'desktop', 'South Korea', '(organic)', 'organic', 'google', 3),
+    ('session_start', None, '550469453.1716210295', 1716216182853832, '20240520', 'desktop', 'South Korea', '(organic)', 'cpc', 'google', 5),
+    ('session_start', None, '2113187608.1716216082', 1716216083676929, '20240520', 'mobile', 'South Korea', '(referral)', 'cpc', 'google', 3)
+]
+
+    # Convert data to DataFrame
+    columns = ['event_name', 'params', 'user_id', 'timestamp', 'event_date', 'device_category', 'country', 'traffic_source', 'medium', 'source', 'session_count']
+    data_df = pd.DataFrame(data, columns=columns)
+    
+    chart = alt.Chart(data_df).mark_bar().encode(
+    x='device_category:N',
+    y='session_count:Q',
+    color='device_category:N',
+    tooltip=['device_category', 'session_count']).properties(title='Device Category vs. Session Count', width=600)
+    st.altair_chart(chart)
+    st.write("차트를 생성합니다.")  # 여기서 차트 생성 로직을 추가하세요
+
+for msg in st.session_state.messages:
+    if(msg["role"] == 'assistant'):        
+        st.chat_message(msg["role"], avatar=GP_ICON).write(msg["content"])
+        
+    if(msg["role"] == 'user'):        
+        st.chat_message(msg["role"]).write(msg["content"])
+                
+if prompt:
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.chat_message("user").write(prompt)
+
+    msg = sqlcontroller.response(prompt)
+    
+    if msg:
+        st.session_state.messages.append({"role": "assistant", "content": msg})
+
+        with st.chat_message("assistant", avatar=GP_ICON):
+            response = st.write_stream(response_generator(msg))
+
+
+
+        
+        
+        
 # data = {
 #     "unique_users": 366,
 #     "unique_events": 19,
@@ -114,25 +191,8 @@ st.caption("🚀 chatbot powered by Dialogflow CX")
 
 # # Streamlit에 차트 표시
 # st.altair_chart(chart, use_container_width=True)
-
-if 'messages' not in st.session_state:
-    st.session_state['sqlcontroller'] = SqlController(prod)
-    st.session_state["messages"] = [{"role": "assistant", "content": "Google Analytics Knowledge base 기반의 Chatbot 서비스 입니다."}]
-
-sqlcontroller = st.session_state['sqlcontroller']
-
-# if 'session_id' not in st.session_state:
-#     st.session_state['session_id'] = str(uuid.uuid4())
-
-for msg in st.session_state.messages:
-    if(msg["role"] == 'assistant'):        
-        st.chat_message(msg["role"], avatar=GP_ICON).write(msg["content"])
-    if(msg["role"] == 'user'):        
-        st.chat_message(msg["role"]).write(msg["content"])
-
-
-# Streamlit chat input
-prompt = st.chat_input(placeholder="여기에 메세지를 입력해주세요.")
+        
+        
 
 # def send_to_dialogflow(prompt, AGENT_ID):
 #     session_path = session_client.session_path(PROJECT_ID, LOCATION_ID, AGENT_ID, st.session_state["session_id"])
@@ -157,33 +217,6 @@ prompt = st.chat_input(placeholder="여기에 메세지를 입력해주세요.")
     #     #     return response.query_result.parameters.response_messages[0].text.text[0]
     #     # else:
     #         return response.query_result.response_messages[0].text.text[0]
-        
-                
-if prompt:
-    # if not AGENT_ID:
-    #     st.info("Please add your Agent Id to continue.")
-    #     st.stop()
-
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    st.chat_message("user").write(prompt)
-
-    # Send the user's message to Dialogflow and get the response
-    # print(st.session_state['session_id'])
-    msg = sqlcontroller.response(prompt)
-    
-    if msg:
-        st.session_state.messages.append({"role": "assistant", "content": msg})
-        st.chat_message("assistant", avatar=GP_ICON).write(msg)
-       
-        
-        
-        
-        
-        
-        
-        
-        
-        
         
 # def get_image_base64():
 #     with open('./1.png', "rb") as image_file:
