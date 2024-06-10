@@ -70,20 +70,16 @@ barPossiblePrompt = """
             """
 
 barChartPrompt = """
+                당신은 <data> 분석하여 막대 그래프의 X축, Y축, title을 정해주는 AI 에이전트 입니다.
+                단 X축과 Y축은 <data>의 colunm에 따라 여러 개 일 수 있습니다.
+                답변 형태는 반드시 아래와 같은 포맷으로 답변해주세요.
                 
-                당신은 Streamlit 의 altair 라이브러리를 통해 bar chart를 개발하는 AI 에이전트 입니다.
-                <data>를 분석하여 "x축", "y축", "color", "tooltip", "title" 5가지를 정해주세요.
-
+                
                 <data>{data}</data>
 
-                example code:'''
-                alt.Chart(data_df).mark_bar().encode(
-                x='device_category:N',
-                y='session_count:Q',
-                color='device_category:N',
-                tooltip=['device_category', 'session_count']).properties(title='Device Category vs. Session Count', width=600)
-                '''
-
-                답변 포맷: {"x": x축, "y": y축, "color": color, "tooltip":tooltip, "title": title}
+                답변포맷: X축, Y축, title
 
                 """
+
+# 답변 포맷: {"x": x축, "y": y축, "color": color, "tooltip":tooltip, "title": title}
+            #    <data>를 분석하여 "x축", "y축", "color", "tooltip", "title" 5가지를 정하여 알려줘

@@ -1,5 +1,6 @@
 import os
 import ast
+import db_dtypes 
 import constant as env
 import customPrompt
 import pandas as pd
@@ -153,7 +154,7 @@ class SqlController():
 
             logging.info(f"[SQLController][response] final responses : {result}")
 
-            return f"실행된 쿼리: {self.final_query}\n\n답변: {result}"        
+            return [self.final_query, result]        
             
         except Exception as e:
             logging.error(f"[SQLController][response] response function Error : {e}")
@@ -302,50 +303,59 @@ class SqlController():
         else:
             logging.error(f"[SQLController][extract_sql_query] query를 추출 할 수 없음: queryOutput{query}")
 
-    def chartCreate(self):
-        query = """
-        SELECT
-    t.event_name,
-    t.user_id,
-    t.user_pseudo_id,
-    t.event_timestamp,
-    t.event_date,
-    t.device.category,
-    t.geo.country,
-    t.traffic_source.name,
-    t.traffic_source.medium,
-    t.traffic_source.source,
-    count(DISTINCT param.value.int_value)
-  FROM
-    `lottecard-test.temp_w_ga4.events_` AS t,
-    UNNEST(t.event_params) AS param
-  WHERE t.event_name = 'session_start'
-  GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-  ORDER BY
-    t.event_timestamp DESC
-  LIMIT 5"""
-        data = self.execute_query.run(query)
-        print(">>>>>>>>",data)
+    def tableCreate(self):
+#         query = """
+#         WITH events AS (
+# SELECT
+#     event_name,
+#     (select value.string_value from unnest(event_params) where key = 'page_title') as page_title,
+#     SUM((select COUNT(value.string_value) from unnest(event_params) where key = 'page_title')) as event_count,
+#     COUNT(DISTINCT user_pseudo_id) AS user,
+#     count(distinct case when event_name = 'page_view' then concat(user_pseudo_id, cast(event_timestamp as string)) end) / count(distinct user_pseudo_id) as event_count_per_user,
+#     SUM(ecommerce.purchase_revenue) AS total_revenue
+# FROM
+#     --- Update the below dataset to match your GA4 dataset and project
+#     `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+# WHERE
+#     _table_suffix between '20210101' and '20210131'
+#     -- change event_name to select another event
+#     and event_name = 'page_view'
+# GROUP BY 
+#     event_name, 
+#     page_title
+# ORDER BY event_count DESC)
+# SELECT event_name, page_title, event_count, user, round(event_count_per_user, 2)as event_count_per_user, total_revenue
+# FROM events
+# ORDER BY event_count  DESC"""
+        # data = self.execute_query.run(query)
 
-        #1. 막대 그래프 차트를 생성 할수 있는 데이터 인지 판단.
-        prompt = PromptTemplate.from_template(
-            template=customPrompt.barPossiblePrompt
-        )
+        job = self.bigquery_client.query_and_wait(self.final_query)
+        data = job.to_dataframe() 
+        
+        print(data)
+        # for row in rows:
 
-        possibility = self.generation_llm(prompt.format(query = query,data = data), env.gemini_1_5_pro)
-        print(possibility.strip())
-        if(possibility.strip() == "Y"):
-            # 차트 생성# 
-            prompt = PromptTemplate.from_template(
-                template=customPrompt.barChartPrompt
-            )
 
-            graph = self.generation_llm(prompt.format(data = data), env.gemini_1_5_pro)
-            print(graph)
+        # #1. 막대 그래프 차트를 생성 할수 있는 데이터 인지 판단.
+        # prompt = PromptTemplate.from_template(
+        #     template=customPrompt.barPossiblePrompt
+        # )
 
-            pass
-        else:
-            pass
+        # possibility = self.generation_llm(prompt.format(query = query, data = data), env.gemini_1_5_pro)
+        # print(possibility.strip())
+
+        # if(possibility.strip() == "Y"):
+        #     # 차트 생성# 
+        #     prompt = PromptTemplate.from_template(
+        #         template=customPrompt.barChartPrompt
+        #     )
+            
+        #     graph = self.generation_llm(prompt.format(data = data), env.gemini_1_5_pro)
+        #     print(graph)
+
+        #     pass
+        # else:
+        #     pass
 
         
-        return
+        return data

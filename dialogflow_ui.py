@@ -4,6 +4,7 @@ from google.oauth2 import service_account
 import streamlit as st
 import pandas as pd
 import altair as alt
+import random
 import uuid
 
 import os
@@ -40,6 +41,7 @@ def load_css_from_file():
     with open('css/style.css', "r", encoding='utf-8') as f:
         css_content = f.read()
     st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
+
 # def response_generator(response_text):
 # """
 # response msg 안에 줄바꿈 로직이 필요 없을때.
@@ -85,69 +87,115 @@ prompt = st.chat_input(placeholder="여기에 메세지를 입력해주세요.")
 #chat message print
 if 'messages' not in st.session_state:
     st.session_state['sqlcontroller'] = SqlController(prod)
-    st.session_state["messages"] = [{"role": "assistant", "content": "Google Analytics Knowledge base 기반의 Chatbot 서비스 입니다."}]
+    st.session_state["messages"] = [{"role": "assistant", "content": "Google Analytics Knowledge base 기반의 Chatbot 서비스 입니다.", "query_msg": "", "csv_msg": pd.DataFrame(), "anwser_msg": ""}]
 sqlcontroller = st.session_state['sqlcontroller']
 
-if st.button("차트 생성", key="chart_button"):
-    sqlcontroller.chartCreate()
-    data = [
-    ('session_start', None, '961114437.1716217099', 1716217099812399, '20240520', 'mobile', 'South Korea', '(organic)', 'cpc', 'google', 3),
-    ('session_start', None, '720669353.1716216398', 1716216400189003, '20240520', 'mobile', 'South Korea', '(referral)', 'cpc', 'google', 3),
-    ('session_start', None, '625063019.1716216237', 1716216239381110, '20240520', 'desktop', 'South Korea', '(organic)', 'organic', 'google', 3),
-    ('session_start', None, '550469453.1716210295', 1716216182853832, '20240520', 'desktop', 'South Korea', '(organic)', 'cpc', 'google', 5),
-    ('session_start', None, '2113187608.1716216082', 1716216083676929, '20240520', 'mobile', 'South Korea', '(referral)', 'cpc', 'google', 3)
-]
-
-    # Convert data to DataFrame
-    columns = ['event_name', 'params', 'user_id', 'timestamp', 'event_date', 'device_category', 'country', 'traffic_source', 'medium', 'source', 'session_count']
-    data_df = pd.DataFrame(data, columns=columns)
-    
-    chart = alt.Chart(data_df).mark_bar().encode(
-    x='device_category:N',
-    y='session_count:Q',
-    color='device_category:N',
-    tooltip=['device_category', 'session_count']).properties(title='Device Category vs. Session Count', width=600)
-    st.altair_chart(chart)
-    st.write("차트를 생성합니다.")  # 여기서 차트 생성 로직을 추가하세요
 
 for msg in st.session_state.messages:
-    if(msg["role"] == 'assistant'):        
-        st.chat_message(msg["role"], avatar=GP_ICON).write(msg["content"])
+    if(msg["role"] == 'assistant'):
+        with st.chat_message("assistant", avatar=GP_ICON): 
+            st.write(msg["content"])   
+            st.write(msg["query_msg"])
+            if not msg["csv_msg"].empty:
+                st.write("table :", msg["csv_msg"])  
+            st.write(msg["anwser_msg"])
+
+            if not msg["csv_msg"].empty:
+                chart_type = st.selectbox("차트 유형을 선택하세요:", ('차트유형', '바 차트', '라인 차트'), key= f"{msg['query_msg']}_chart_type")  
+                if chart_type == '바 차트':
+                    x_axis = st.selectbox('X축 선택', msg["csv_msg"].columns, key=f"{msg['query_msg']}_x_axis")
+                    y_axis = st.selectbox('Y축 선택', msg["csv_msg"].columns, key=f"{msg['query_msg']}_y_axis")
+                    chart_title = st.text_input('차트 타이틀 입력', 'My Chart', key=f"{msg['query_msg']}_chart_title")
+                    # Altair 차트 생성
+                    chart = alt.Chart(msg["csv_msg"]).mark_bar().encode(
+                        x=x_axis,
+                        y=y_axis
+                    ).properties(
+                        title=chart_title
+                    )
+                    st.altair_chart(chart, use_container_width=True)
+                elif chart_type == '라인 차트':
+                    x_axis = st.selectbox('X축 선택', msg["csv_msg"].columns, key=f"{msg['query_msg']}_x_axis")
+                    y_axis = st.selectbox('Y축 선택', msg["csv_msg"].columns, key=f"{msg['query_msg']}_y_axis")
+                    chart_title = st.text_input('차트 타이틀 입력', 'My Chart', key=f"{msg['query_msg']}_chart_title")
+                    chart = alt.Chart(msg["csv_msg"]).mark_line().encode(
+                        x=x_axis,
+                        y=y_axis
+                    ).properties(
+                        title=chart_title
+                    )
+                    st.altair_chart(chart, use_container_width=True)
+
+            # if st.button("차트생성"):
+            #     st.session_state["button_clicked"] = True
         
     if(msg["role"] == 'user'):        
         st.chat_message(msg["role"]).write(msg["content"])
-                
+
+
+
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
     msg = sqlcontroller.response(prompt)
-    
+    csv_msg = sqlcontroller.tableCreate()
+
     if msg:
-        st.session_state.messages.append({"role": "assistant", "content": msg})
+        query_msg = f"실행된 쿼리 :\n```sql\n{msg[0]}\n``` \n\n"
+        anwser_msg = f"{msg[1]}"
 
+        st.session_state.messages.append(
+            {"role": "assistant", 
+             "content": "",
+             "query_msg": f"실행된 쿼리 :\n```sql\n{msg[0]}\n```",
+             "csv_msg": csv_msg,
+             "anwser_msg": anwser_msg}
+            )
+        
         with st.chat_message("assistant", avatar=GP_ICON):
-            response = st.write_stream(response_generator(msg))
+            st.write_stream(response_generator(query_msg))
+            st.write("table :", csv_msg)  
+            st.write_stream(response_generator(anwser_msg))
+            st.selectbox("차트 유형을 선택하세요:", ('차트유형', '바 차트', '라인 차트'), key= random.randint(1000, 9999))  
+           
+
+# Check if button was clicked
+if st.session_state.get("button_clicked", False):
+    st.write(sqlcontroller.tableCreate())
+
+    # 사용자로부터 x축, y축 선택
+    x_axis = st.selectbox('Select X-axis', csv_msg.columns)
+    y_axis = st.selectbox('Select Y-axis', csv_msg.columns)
+    chart_title = st.text_input('Enter Chart Title', 'My Chart')
+
+    # Altair 차트 생성
+    chart = alt.Chart(csv_msg).mark_bar().encode(
+        x=x_axis,
+        y=y_axis
+    ).properties(
+        title=chart_title
+    )
 
 
 
-        
-        
-        
-# data = {
-#     "unique_users": 366,
-#     "unique_events": 19,
-#     "unique_dates": 1,
-#     "unique_timestamps": 2465,
-#     "unique_previous_timestamps": 4,
-#     "unique_event_values": 0,
-#     "unique_bundle_ids": 3,
-#     "unique_server_offsets": 2,
-#     "unique_user_ids": 0,
-#     "unique_first_touch_timestamps": 365
-# }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # # Convert the dictionary to a DataFrame
 # data_df = pd.DataFrame(list(data.items()), columns=['Category', 'Values'])
+# data_df = sqlcontroller.chartCreate()
 # # data_df = pd.DataFrame({
 # #     'Category': ['2020-01-01', '2020-01-02', '2020-01-03'],
 # #     'Values': [10, 20, 30]
@@ -155,7 +203,25 @@ if prompt:
 # # # Convert data to DataFrame
 # chart_type = st.selectbox("차트 유형을 선택하세요:", ('바 차트', '라인 차트', '영역 차트', '점 차트'))
 
-# # 선택된 차트 유형에 따른 차트 렌더링
+# st.title('Dynamic Altair Chart with BigQuery Data')
+# st.write("Query results:")
+# st.write(sqlcontroller.tableCreate())
+
+# # 사용자로부터 x축, y축 선택
+# x_axis = st.selectbox('Select X-axis', data_df.columns)
+# y_axis = st.selectbox('Select Y-axis', data_df.columns)
+# chart_title = st.text_input('Enter Chart Title', 'My Chart')
+
+# # Altair 차트 생성
+# chart = alt.Chart(data_df).mark_bar().encode(
+#     x=x_axis,
+#     y=y_axis
+# ).properties(
+#     title=chart_title
+# )
+
+
+# 선택된 차트 유형에 따른 차트 렌더링
 # if chart_type == '바 차트':
 #     chart = alt.Chart(data_df).mark_bar().encode(
 #         x='Category:N',
